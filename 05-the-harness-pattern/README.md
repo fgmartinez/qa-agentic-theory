@@ -46,16 +46,34 @@ AUTONOMY = ACT + OBSERVE + CORRECT
 
 This is a useful, falsifiable definition. A system that acts but never observes isn't autonomous — it's a fire-and-forget script. A system that observes but can't correct isn't autonomous either — it's a dashboard. All three, in a loop, are what the word "agent" needs to mean beyond "an LLM with function calling enabled."
 
-## Applied to `portfolio-risk-evaluator`
+## Applied: where the harness belongs, and where it doesn't
 
-This is where the diagram stops being generic and becomes a concrete next milestone. Current state of the project:
+The most useful thing this chapter can teach is **when the pattern does not apply** — because an unused abstraction is a liability, not a hedge.
 
-- `/health` — functional.
-- `/review` — returns `501 Not Implemented`. `TransactionCase` and `ReviewDecision` schemas exist; the closed `RuleId` enum exists; six tests pass.
+### `fintech-support-ai-evaluator` — the harness fits
 
-Everything built so far covers the **Model / Decision** box only: given a `TransactionCase`, produce a `ReviewDecision` that cites a real `RuleId`. That's step 3 of the agent loop — reasoning and proposing an action. Nothing executes it yet. The harness is the missing majority of this diagram, and it's what turns `/review` from an LLM wrapper into something closer to what the project's evaluation layer (RuleId grounding, hallucination prevention, compliance mapping) was actually built to defend.
+That project's agent has `escalate_to_human` and payment-side operations: decisions with **effects**. An escalation that silently fails to create a case is exactly the gap between "the model decided" and "the world changed". Full pattern applies — executor, resolver, and loop.
 
-> **Walking skeleton, not a mock that gets replaced later.** The project's existing architecture rule applies directly here: the harness's system clients should be built against a real interface (e.g. an abstract `PaymentGatewayClient`) with an in-memory fake implementation behind it for now — not a throwaway mock that gets rewritten when a real gateway is wired in later. Swapping the fake for Stripe/Adyen/whatever real rail applies should mean writing a new class that satisfies the same interface, not restructuring the endpoint.
+### `portfolio-risk-evaluator` — only half the pattern fits
+
+Verified against the real repo (`4a10109`): its `/review` produces a **recommendation**, not an action.
+
+```python
+class ReviewAction(str, Enum):
+    auto_approve = "auto_approve"
+    secondary_review = "secondary_review"
+    escalate_immediate = "escalate_immediate"
+```
+
+No amount moves. No gateway exists, and the project's own rules forbid connecting one. **`/review` is a pure function from case to recommendation — and a pure function does not need a harness.**
+
+What *does* apply is the resolver half. That project's `compute_risk_level(triggers) -> RiskLevel` is already a resolver in this chapter's sense, arrived at independently: a pure function mapping collected evidence to a classification, no I/O, no model, exhaustively testable. Everything this chapter says about resolvers — fail-safe fallthrough, branch order as behaviour, property tests over the input space — applies to it directly.
+
+And the fail-safe question has a precise local form: **`auto_approve` is that system's "assume it worked."** It is the one outcome that must never be reachable by omission or by an unmatched branch.
+
+> **The distinction worth carrying into an interview.** The harness pattern applies where a decision has an *effect*. Splitting it into an executor (needed only when something can fail in the world) and a resolver (needed whenever evidence must be turned into a verdict) is what lets you say *"no harness here, and here's why"* as a design decision rather than an omission.
+
+> **Walking skeleton, not a mock that gets replaced later.** Where the executor *is* needed, build its clients against a real interface (e.g. an abstract `PaymentGatewayClient`) with an in-memory fake behind it — not a throwaway mock. Swapping the fake for a real rail should mean writing a new class satisfying the same Protocol, not restructuring the endpoint.
 
 ## Why this is a genuine testing dimension
 

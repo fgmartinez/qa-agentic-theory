@@ -62,7 +62,7 @@ python -m pytest tests/                # 27 passed in 0.11s
 | Repo | Role |
 |---|---|
 | **`qa-agentic-theory`** (this one) | Where a concept gets taught once, in full — definitions, worked examples, exercises, tested code — before it touches production code. |
-| [`portfolio-risk-evaluator`](https://github.com/fgmartinez/portfolio-risk-evaluator) | Trunk project 1: a transaction dispute / risk review agent. No RAG — rule-grounded decisions (closed `RuleId` enum) executed through a harness. |
+| [`portfolio-risk-evaluator`](https://github.com/fgmartinez/portfolio-risk-evaluator) | Trunk project 1: a transaction risk **review** agent. 12 regulation-grounded rules as pure functions, plus RAG over a rule knowledge base so citations are retrieved rather than paraphrased. Outputs a recommendation — no execution layer, deliberately. |
 | `fintech-support-ai-evaluator` | Trunk project 2: a payment-support RAG + ReAct agent (`get_payment_policy`, `check_invoice_status`, `escalate_to_human`), evaluated across five layers. |
 | `clinic-ai-testing` | Reference implementation — the RAG pipeline from Chapter 2, already built and running. |
 
@@ -79,7 +79,8 @@ Chapters 1–12 read straight through as one story. Shorter routes:
 ## Status
 
 - **All 12 chapters written**, cross-linked, with exercises and interview sections throughout.
-- **Chapter 6's service**: 112 tests passing, verified running under `uvicorn` — endpoints exercised with real requests, structured log output captured from a real run. **Not yet wired into `portfolio-risk-evaluator`'s real `/review`**: that repo's `main.py`/`schemas.py` were not available to read, so Chapter 6's schemas are explicitly this notebook's own rather than a guess at production field names. [`WIRING.md`](./06-implementing-and-testing-the-harness/WIRING.md) has the adapter pattern.
+- **Chapter 6's service**: 112 tests passing, verified running under `uvicorn` — endpoints exercised with real requests, structured log output captured from a real run.
+- **`portfolio-risk-evaluator` has been read** (`4a10109`) and a long-standing claim in this notebook was **corrected**: Chapter 6's harness does *not* drop into that project's `/review`. It produces a recommendation, not an action — no amount, no gateway, and a documented rule against connecting one. The harness's **executor** belongs to `fintech-support-ai-evaluator`; its **resolver** is what maps onto `portfolio-risk-evaluator` (whose `compute_risk_level()` already is one). See [`WIRING.md`](./06-implementing-and-testing-the-harness/WIRING.md). Chapter 6's schemas stay explicitly this notebook's own teaching schemas.
 - **Chapter 7's toolkit**: 27 tests passing.
 - Chapters 2 and 8–11 originated from pre-existing guides (`llm-agentic-eval-guide.html`, `deepeval-ragas-guide.html`, `deepeval-metrics-guide.html`, `clinic-ai-testing/TESTING_AI_SYSTEMS.md`) — ported and reorganised, then extended with worked examples and exercises.
 

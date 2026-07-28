@@ -715,7 +715,7 @@ Model answers. The good version is short, concrete, and names a trade-off — no
 Honest status:
 
 - **Verified**: the loop, resolver, corrector, idempotency, decision layer, API contract, and structured logging — 112 tests plus a live `uvicorn` run, both transcribed above from real output.
-- **Not verified**: that `app/schemas.py`'s field names match `portfolio-risk-evaluator`'s real `TransactionCase` / `ReviewDecision` / `RuleId`. That repo's code was not available to read. The schemas here are **this notebook's own** — structurally right, deliberately not presented as a transcription of production. [`WIRING.md`](./WIRING.md) has the adapter pattern that makes the swap a one-file change.
+- **Checked and corrected**: `portfolio-risk-evaluator` has since been read (`4a10109`), and the earlier assumption that this chapter's harness would drop into its `/review` was **wrong**. That system produces a *recommendation* (`auto_approve` / `secondary_review` / `escalate_immediate`) with no amount, no gateway, and a documented rule against connecting one. There is nothing for the executor to execute. What transfers is the **resolver** half — its `compute_risk_level()` is already a resolver in this chapter's sense. [`WIRING.md`](./WIRING.md) has the full reconciliation, including what not to copy. The schemas here remain **this notebook's own teaching schemas** for a refund domain, and should stay that way.
 - **Not built**: persistence (the ledger is in-memory), authentication, and an outbox for the case where the process dies between the rail confirming and our state persisting — the one failure mode this design observes (`APPROVED` + `not state_persisted` → `ESCALATE`) but cannot yet prevent.
 
 ## Decision log
