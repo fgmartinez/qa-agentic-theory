@@ -74,6 +74,71 @@ This is also where the domain-knowledge argument gets concrete rather than abstr
 | Consequence | `/review` will orchestrate: LLM decision → harness execution → resolver, instead of returning the LLM's decision directly. Adds one new testable, LLM-independent layer. |
 | Status | Proposed here; implemented and unit-tested in [Chapter 6](../06-implementing-and-testing-the-harness/README.md). |
 
+## Exercises
+
+### 1 — Test the formula
+
+`AUTONOMY = ACT + OBSERVE + CORRECT`. Classify each system and name the missing term:
+
+(a) A cron job that posts a daily report to Slack.
+(b) A dashboard that alerts when refund failures exceed 5%.
+(c) A retry wrapper that re-sends any failed HTTP request three times.
+(d) An LLM that calls `issue_refund` and returns the tool call to the user.
+
+<details><summary>Solution</summary>
+
+(a) **ACT only** — fire-and-forget. No observation, so it cannot know it failed.
+(b) **OBSERVE only** — a dashboard. It knows, and can do nothing.
+(c) **ACT + CORRECT, no real OBSERVE** — the interesting one. It reacts to *transport* failure but never inspects the *result*: a 200 response containing `{"status": "rejected"}` counts as success. It corrects a signal it isn't actually reading.
+(d) **Neither OBSERVE nor CORRECT** — and arguably not even ACT, since a tool call is a proposal. This is most agent demos.
+
+The formula's value is that it's falsifiable. "Is this autonomous?" is a vibe; "which of the three terms is missing?" has an answer.
+</details>
+
+### 2 — Justify the indirection
+
+A colleague says: "The harness is over-engineering. Let the model's tool call hit the payment API directly — you've just added a class." Give the strongest version of their argument, then answer it.
+
+<details><summary>Solution</summary>
+
+**Their strongest case:** it's genuinely less code, the indirection buys nothing on the happy path, and the tool-calling layer already validates arguments against a schema (Chapter 7). If the call is well-formed, why wrap it?
+
+**The answer:** because the happy path isn't what the layer is for. Four things become impossible without it — one chokepoint to log, rate-limit and roll back; a place to distinguish a timeout from a rejection and respond differently; a deterministic recovery path that can be tested exhaustively with no model; and an audit trail pairing the decision with what actually happened. Chapter 7's schema validates that the *request* is well-formed; it says nothing about what the *response* means.
+
+The framing that usually lands: it's the same reason a frontend doesn't write directly to the database. Nobody calls that over-engineering, and the argument is identical — one place to enforce invariants beats N callers each getting it right.
+</details>
+
+### 3 — Design the resolver before reading Chapter 6
+
+A gateway returns `status`, `settled_amount`, and `persisted`. Write the mapping to `{TERMINATE, RETRY, CORRECT, ESCALATE}` yourself. Then state what your unmatched-input case does, and why.
+
+<details><summary>Solution (compare against Chapter 6)</summary>
+
+The mapping most people reach: timeout → retry, rejected → escalate, approved-but-wrong-amount → correct, approved-and-persisted → terminate.
+
+The part worth grading yourself on is the **fallthrough**. If your default was "assume success", that is precisely the failure mode this notebook exists to name — a system that silently reports success on a signal it doesn't recognise. It must be `ESCALATE`.
+
+Second thing to check: did you handle `approved` + `not persisted`? The rail says yes, your system has no record. That disagreement can't be resolved automatically, and it's the case people most often forget to write down.
+</details>
+
+## Interview preparation
+
+**"What's the harness pattern?"**
+
+> A layer between the model's decision and the systems it affects. The model proposes an action; the harness executes it against the real system, observes what actually came back, and decides what happens next — terminate, retry, correct, or escalate. The key property is that the model never holds a client to the payment API or the database; the harness is the only thing with that access. That's what makes the boundary auditable and testable.
+
+**"Why does that matter more for AI than for normal software?"**
+
+> Because the component producing the decision is probabilistic and the component executing it must not be. In normal software the caller and the callee are both deterministic, so you can reason about the whole path. With a model in front, the only way to make guarantees is to put a deterministic layer between the decision and the effect — and then the guarantees are about that layer, which you can test exhaustively. It's also where the domain argument gets concrete: DORA's operational-resilience requirements are about systems that detect failures and respond correctly, which is exactly this layer, not the model's accuracy.
+
+**"Define autonomy."**
+
+> Act plus observe plus correct, in a loop. It's a useful definition because it's falsifiable — a system that acts but never observes is a fire-and-forget script, and one that observes but can't correct is a dashboard. Most things marketed as agents are missing at least one term, and naming which one is missing is a faster diagnosis than arguing about whether something "is an agent".
+
+**"What's the difference between a tool call and an action?"**
+
+> A tool call is a proposal. The model emitting `issue_refund(amount=120, case_id="C-4471")` means it has decided; it does not mean anything moved. Between that decision and "the customer has 120 and our system knows it" there's execution, verification, persistence, and failure handling. Trusting the tool call is how a payment agent behaves as though a refund succeeded when the gateway actually timed out — and `ToolCorrectnessMetric` will happily report 100% on that system, because the call *was* correct.
+
 ## Next
 
 [Chapter 6 — Implementing and Testing the Harness](../06-implementing-and-testing-the-harness/README.md) turns this into working, tested code.

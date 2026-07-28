@@ -1,0 +1,9 @@
+# Chapter 6 — runnable harness service.
+#
+# The service runs with no model and no network by default (see app/config.py),
+# so httpx is only needed for the optional Ollama adapter and the test client.
+fastapi>=0.110
+pydantic>=2.6
+uvicorn>=0.27
+httpx>=0.26
+pytest>=8.0

@@ -32,31 +32,49 @@ If a request comes in that would add half-finished or exploratory code directly 
 The order follows a public AI Agents learning roadmap end to end (archived as `images/ai-agents-roadmap.png`), not the order chapters happened to get written in:
 
 ```
-1  LLM Fundamentals        — prerequisite mechanics (tokens, context, sampling, model families)
-2  RAG Fundamentals         — first real architecture: retrieval + grounding
+1  LLM Fundamentals          — prerequisite mechanics (tokens, context, sampling, model families)
+2  RAG Fundamentals          — first real architecture: retrieval + grounding
 3  AI Agents 101             — what an agent/tool is, the 4-step loop
 4  Prompt Engineering        — step 2 of that loop, done properly
 5  The Harness Pattern       — step 3–4 of that loop, formalized (2nd source diagram)
-6  Implementing & Testing    — the harness, as real code
-7  Evaluation Metrics        — is any of the above actually good?
-8  Golden Datasets           — where the test cases in Ch.7 come from
-9  Compliance Mapping        — EU AI Act / DORA / OWASP, mapped to Ch.7's metrics
-10 CI/CD Quality Gates       — enforce Ch.7-9 automatically, pre-deploy
-11 Observability             — the same questions as Ch.7, post-deploy, continuously
+6  Implementing & Testing    — the harness, as a real backend service
+7  Tool Calling & Schemas    — how a call is described and emitted (the other half of tool use)
+8  Evaluation Metrics        — is any of the above actually good?
+9  Golden Datasets           — where the test cases in Ch.8 come from
+10 Compliance Mapping        — EU AI Act / DORA / OWASP, mapped to Ch.8's metrics
+11 CI/CD Quality Gates       — enforce Ch.8-10 automatically, pre-deploy
+12 Observability             — the same questions as Ch.8, post-deploy, continuously
 ```
 
-**Renumbering happened once already** (chapters were originally written 1–9 in build order: harness trio first, then RAG/eval/observability/golden/compliance/CI-CD as a second batch; then renumbered to the sequence above to match the roadmap image and to insert the two new foundational chapters). If another renumbering is ever needed: move every folder to a `tmp-` prefix first to avoid collisions, then to final names; then do a single-pass regex remap of `Chapter N` text mentions and relative-link folder names using an explicit old→new dict (not sequential chained replacements, which double-map); then manually fix any plural "Chapters N–M" range mentions, since a range in the old numbering usually isn't contiguous in the new one.
+**Renumbering has happened twice.** First: chapters were originally written 1–9 in build order, then renumbered to match the roadmap image and insert two foundational chapters. Second: Chapter 7 (Tool Calling) was inserted, shifting old 7–11 to 8–12.
+
+The procedure that worked both times, and should be reused: move every folder to a `tmp-` prefix first to avoid collisions, then to final names; then do a **single-pass** regex remap of `Chapter N` mentions and relative-link folder names using an explicit old→new dict (**not** sequential chained replacements, which double-map: 7→8, then that 8→9); exclude any file already authored in the new numbering; then manually fix plural "Chapters N–M" ranges, since a range in the old numbering usually isn't contiguous in the new one. The second renumber touched 17 files automatically and needed 4 manual range fixes.
+
+## Textbook conventions (added in the study-book pass)
+
+The repo is now a **study textbook**, not a summary notebook. Anything new must match:
+
+- **Every chapter ends with `## Exercises` then `## Interview preparation`**, before `## Next`. Exercises use `<details><summary>Solution</summary>` so the reader can attempt first. Solutions explain the *reasoning*, and where possible name the second, non-obvious point the surface answer misses.
+- **Interview answers are written as spoken answers** — first person, concrete, naming a trade-off. Not definitions.
+- **Chapters with a hard concept get a `## Worked example`** with real numbers or a real trace, placed before the exercises.
+- **Verified, not transcribed.** Test counts and command output in a chapter must come from an actual run. Chapter 6's 112 and Chapter 7's 27 were both run; the `uvicorn` transcript and the JSON log lines in Chapter 6 are real captured output.
+- Front matter: [`STUDY-GUIDE.md`](./STUDY-GUIDE.md), [`GLOSSARY.md`](./GLOSSARY.md), [`CAPSTONE.md`](./CAPSTONE.md). Adding a chapter means adding its terms to the glossary and, if it changes the reading order, updating the study guide's paths.
 
 ## Current status (check before assuming anything is stale)
 
-- All 11 chapters are written and cross-linked correctly (verified: every relative link resolves, every Previous/Next pointer is consistent with the table in the README).
-- Chapter 6's harness code is implemented and unit-tested — **8/8 pytest passing, actually run, not transcribed** — but **not yet wired into `portfolio-risk-evaluator`'s real `/review` endpoint**. That project's repo was empty on GitHub (`git ls-remote` returned nothing) the last time this was checked, so the wiring step is blocked on Fernando providing the real `main.py`/`schemas.py`, or doing the wiring himself against Chapter 6's `WIRING.md`-equivalent guidance.
-- Chapters 2 and 7–10's content originated from Fernando's pre-existing guides (`llm-agentic-eval-guide.html`, `deepeval-ragas-guide.html`/`-v2.html`, `deepeval-metrics-guide.html`, `clinic-ai-testing/TESTING_AI_SYSTEMS.md`) — ported and reorganized, not written from scratch. If something in those chapters seems off or dated, the source-of-truth guides are the first place to check before assuming the port introduced an error.
-- Chapters 1, 3 (partially — the "What is an agent/tool" sections), 4, 5, 6, and 11 are original to this notebook.
+- **All 12 chapters written**, cross-linked, each with exercises + interview sections. Every relative link and Previous/Next pointer verified resolving.
+- **Chapter 6 is now a full backend service, not the original four-file module.** FastAPI app (`/health`, `/rules`, `/review`), Pydantic schemas with a closed `RuleId`, a decision layer (`RuleBasedDecisionEngine` + `LLMDecisionEngine` with grounding validation + `OllamaClient`), and the harness proper: intent-derived idempotency keys, a pure resolver, a separate `Corrector`, and a **bounded ACT→OBSERVE→CORRECT loop**. **112 tests passing, actually run.** Service verified booting under `uvicorn` with real curl requests.
+  - The original version had a genuine hole worth remembering: the resolver returned `RETRY`/`CORRECT` and **nothing ever retried or corrected** — the loop did not exist. ADR-003 in that chapter records the fix.
+- **Chapter 7 is new** and ships a tool-calling toolkit: a registry deriving JSON Schema from type hints (both OpenAI and Anthropic dialects) and a validating dispatcher. **27 tests passing.**
+- **Still not wired into `portfolio-risk-evaluator`.** That repo's `main.py`/`schemas.py` were still unavailable. Chapter 6's `app/schemas.py` is **explicitly labelled as this notebook's own**, not a guess at production field names, and [`WIRING.md`](./06-implementing-and-testing-the-harness/WIRING.md) gives the adapter pattern so the swap is a one-file change. Do not edit `app/harness/` to match trunk field names — that independence is what makes it testable without an LLM.
+- Chapters 2 and 8–11's content originated from Fernando's pre-existing guides (`llm-agentic-eval-guide.html`, `deepeval-ragas-guide.html`/`-v2.html`, `deepeval-metrics-guide.html`, `clinic-ai-testing/TESTING_AI_SYSTEMS.md`) — ported, reorganized, then extended with worked examples and exercises. If something there seems off or dated, check the source guides before assuming the port introduced an error.
+- Chapters 1, 3, 4, 5, 6, 7, and 12 are original to this notebook.
 
 ## Roadmap — queued, not yet written
 
-See the README's "Roadmap — not yet written" section for the live list. As of this writing: LLM-as-judge selection in depth, drift detection tooling, agent framework comparison (LangGraph vs. AgentExecutor vs. CrewAI/AutoGen), and tool-calling mechanics (function-calling schemas, MCP) — that last one because the source roadmap image's "Tools / Actions" section was cut off in the screenshot and its content was never actually seen, so it shouldn't be invented.
+See the README's "Roadmap — not yet written" section for the live list. As of this writing: LLM-as-judge selection in depth, drift detection tooling, agent framework comparison (LangGraph vs. AgentExecutor vs. CrewAI/AutoGen), and **persistence + the outbox pattern** — that last one because Chapter 6's design *observes* the "rail confirmed but our state didn't persist" failure (`APPROVED` + `not state_persisted` → `ESCALATE`) but cannot yet prevent it.
+
+Tool-calling mechanics came off this list — it is now Chapter 7. Note the source roadmap image's "Tools / Actions" section was cut off in the screenshot and was never actually seen, so that chapter was written from primary knowledge of how the APIs work rather than from the image; it should not be presented as following that diagram.
 
 ## Working style Fernando expects (applies here same as everywhere)
 

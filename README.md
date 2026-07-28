@@ -1,75 +1,99 @@
 # QA Agentic Theory
 
-A theory notebook for AI Quality Engineering. Every concept gets explained, worked through with examples, and prototyped in code here — in full — before it lands in a practical project. Chapter order follows a public AI Agents learning roadmap end to end (archived in `images/`); structure and pacing modeled on [DataTalksClub/llm-zoomcamp](https://github.com/DataTalksClub/llm-zoomcamp): numbered chapter folders, each self-contained, each ending in something concrete.
+A study textbook for AI Quality Engineering. Twelve chapters, each self-contained, each ending in exercises with worked solutions and an interview-preparation section. Two chapters ship runnable, tested code — a complete harness-based backend service and a tool-calling toolkit.
+
+**The bar this repo is built to clear:** after working through it, you should be able to sit down at an empty editor and build a full harness-based agent system — backend included — and then defend every design decision in an interview, the same way a QA engineer can explain test types, pyramids, and coverage strategy without notes.
+
+Chapter order follows a public AI Agents learning roadmap (archived in `images/`), extended past where that roadmap stops into everything needed to evaluate, secure, and operate what gets built.
+
+## Start here
+
+| If you want to… | Go to |
+|---|---|
+| Work through it properly | **[STUDY-GUIDE.md](./STUDY-GUIDE.md)** — three paths, how to read a chapter, spaced repetition, self-assessment |
+| Look up a term | **[GLOSSARY.md](./GLOSSARY.md)** — every load-bearing term, plus the confusable pairs that cause real bugs |
+| Prove you learned it | **[CAPSTONE.md](./CAPSTONE.md)** — build a different system from a specification, no code provided |
+| Just run something | `cd 06-implementing-and-testing-the-harness && pip install -r requirements.txt && python demo.py` |
+
+## Chapters
+
+| # | Chapter | Covers | Code |
+|---|---|---|---|
+| 1 | [LLM Fundamentals](./01-llm-fundamentals/README.md) | Tokens, context windows, generation controls, model families, reasoning models, fine-tuning vs. prompting, pricing | — |
+| 2 | [RAG Fundamentals](./02-rag-fundamentals/README.md) | Chunking, embeddings, vector stores, retrieval, grounding — and the chunk-boundary failure traced end to end | — |
+| 3 | [AI Agents 101](./03-ai-agents-101/README.md) | What an agent and a tool are, the four-step loop, one loop traced turn by turn, per-step failure modes | — |
+| 4 | [Prompt Engineering](./04-prompt-engineering/README.md) | Specificity, context, precise terms, CoT/ToT, one prompt across four revisions, GEval criteria as prompts | — |
+| 5 | [The Harness Pattern](./05-the-harness-pattern/README.md) | Why a tool call is not an action; `AUTONOMY = ACT + OBSERVE + CORRECT` | — |
+| 6 | [Implementing and Testing the Harness](./06-implementing-and-testing-the-harness/README.md) | The full backend, built stage by stage: idempotency, the bounded loop, correction, decision layer, API, structured logging | **112 tests** |
+| 7 | [Tool Calling and Function Schemas](./07-tool-calling-and-function-schemas/README.md) | Function schemas, the round trip, schema design, validation, error shaping, injection, MCP | **27 tests** |
+| 8 | [Evaluation Metrics](./08-evaluation-metrics/README.md) | `LLMTestCase`, the metric landscape, DeepEval vs. RAGAS, GEval, four metrics scored on one bad answer | — |
+| 9 | [Golden Datasets](./09-golden-datasets/README.md) | Case structure, the four case types written out, synthetic generation, mandatory review, risk levels | — |
+| 10 | [Compliance Mapping](./10-compliance-mapping/README.md) | EU AI Act tiers, requirement→metric→threshold, DORA, OWASP LLM Top 10, answering an auditor with a test id | — |
+| 11 | [CI/CD Quality Gates](./11-ci-cd-quality-gates/README.md) | Thresholds as config, the fast gate vs. the eval gate, the exit-code gate, block-vs-warn policy | — |
+| 12 | [Observability and Telemetry](./12-observability-and-telemetry/README.md) | The four-layer stack, golden signals, one incident traced through real logs, drift, sampling | — |
+
+Every chapter ends with **Exercises** (solutions collapsed — write your answer first) and **Interview preparation** (model answers to rehearse out loud).
+
+## The code
+
+Two chapters ship working software, verified rather than transcribed.
+
+**Chapter 6 — a complete backend service.** FastAPI app, closed-enum schemas, a decision layer (deterministic rule engine + LLM engine with grounding validation), and the harness: intent-derived idempotency keys, a pure resolver, a separate corrector, and a **bounded ACT → OBSERVE → CORRECT loop** where every exit is an explicit terminal reason.
+
+```bash
+cd 06-implementing-and-testing-the-harness
+pip install -r requirements.txt
+python demo.py                        # tour every failure path, no server needed
+python -m pytest tests/                # 112 passed in 0.65s
+python -m uvicorn app.main:app         # then POST /review
+```
+
+**Chapter 7 — a tool-calling toolkit.** A registry deriving JSON Schema from type hints, rendering both OpenAI and Anthropic dialects, and a dispatcher that validates before executing and shapes errors the model can act on.
+
+```bash
+cd 07-tool-calling-and-function-schemas
+python -m pytest tests/                # 27 passed in 0.11s
+```
+
+**139 tests, none of which call an LLM, all running in about a second.** That is the notebook's central technical claim made concrete: *almost everything that makes an agent safe is deterministic and can be tested deterministically.* The loop, the idempotency key, the recovery logic, the grounding check, the schema constraints, the dispatch validation — no model required. Only "was the decision *good*?" needs Chapter 8's statistical machinery, and keeping that question separate is what keeps the fast gate fast.
 
 ## Two repos, on purpose
 
 | Repo | Role |
 |---|---|
-| **`qa-agentic-theory`** (this one) | Where a concept gets taught once, in full — definitions, diagrams, worked examples, tested code — before it touches production code. |
-| [`portfolio-risk-evaluator`](https://github.com/fgmartinez/portfolio-risk-evaluator) | Trunk project 1: a transaction dispute / risk review agent, walking-skeleton architecture. No RAG — rule-grounded decisions (closed `RuleId` enum) executed through a harness. |
+| **`qa-agentic-theory`** (this one) | Where a concept gets taught once, in full — definitions, worked examples, exercises, tested code — before it touches production code. |
+| [`portfolio-risk-evaluator`](https://github.com/fgmartinez/portfolio-risk-evaluator) | Trunk project 1: a transaction dispute / risk review agent. No RAG — rule-grounded decisions (closed `RuleId` enum) executed through a harness. |
 | `fintech-support-ai-evaluator` | Trunk project 2: a payment-support RAG + ReAct agent (`get_payment_policy`, `check_invoice_status`, `escalate_to_human`), evaluated across five layers. |
-| `clinic-ai-testing` | Reference implementation — the RAG pipeline described in Chapter 2 already built and running. |
+| `clinic-ai-testing` | Reference implementation — the RAG pipeline from Chapter 2, already built and running. |
 
-Rework in a trunk project is expensive on purpose — each one is meant to grow as a coherent, interview-defensible codebase, not get rewritten every time understanding improves. This repo absorbs that churn instead: a topic is learned and explained here, with working, tested code, and only *then* does the corresponding piece land in a trunk project — usually as a small drop-in package plus a short wiring note, so a trunk project's commit history stays clean and every commit there represents a settled decision, not a draft.
-
-## Chapters
-
-Numbered in the order a public AI Agents roadmap lays the topic out: prerequisites → LLM fundamentals → RAG → agents 101 → prompt engineering → tools/actions, extended past where that roadmap stops into everything needed to evaluate, secure, and operate what gets built.
-
-| # | Chapter | Covers | Feeds |
-|---|---|---|---|
-| 1 | [`01-llm-fundamentals`](./01-llm-fundamentals/README.md) | Tokenization, context windows, generation controls, open vs. closed weight models, reasoning vs. standard models, fine-tuning vs. prompting, streaming, pricing. | Foundation for every later chapter |
-| 2 | [`02-rag-fundamentals`](./02-rag-fundamentals/README.md) | What/why RAG, chunking, embeddings, vector stores (ChromaDB vs. FAISS), generator/embedder model selection. | `fintech-support-ai-evaluator`, `clinic-ai-testing` |
-| 3 | [`03-ai-agents-101`](./03-ai-agents-101/README.md) | What is an agent, what is a tool, the four-step agent loop (perceive → reason/plan → act → observe/reflect) and its per-step failure modes. | Vocabulary for 4–11 |
-| 4 | [`04-prompt-engineering`](./04-prompt-engineering/README.md) | Writing prompts that hold up, Chain-of-Thought, Tree-of-Thought, GEval criteria as prompts aimed at a judge. | Both trunk projects' system prompts |
-| 5 | [`05-the-harness-pattern`](./05-the-harness-pattern/README.md) | The harness: executes a decision against real systems, observes what happened, decides what's next. The autonomy formula. | `portfolio-risk-evaluator` `/review` |
-| 6 | [`06-implementing-and-testing-the-harness`](./06-implementing-and-testing-the-harness/README.md) | Full implementation + pytest suite — 8/8 passing, run and verified. Ready to drop in. | `portfolio-risk-evaluator` |
-| 7 | [`07-evaluation-metrics`](./07-evaluation-metrics/README.md) | `LLMTestCase`, the metric landscape, DeepEval vs. RAGAS decision framework, GEval, the layered evaluation view. | Both trunk projects' eval suites |
-| 8 | [`08-golden-datasets`](./08-golden-datasets/README.md) | Golden set structure, the four case types (direct/multi-hop/adversarial/escalation), synthetic generation + mandatory review. | Both trunk projects' test oracles |
-| 9 | [`09-compliance-mapping`](./09-compliance-mapping/README.md) | EU AI Act risk tiers, requirement→metric→threshold mapping, DORA, OWASP LLM Top 10, prompt-injection defense. | Layer 5 of the eval suite, both projects |
-| 10 | [`10-ci-cd-quality-gates`](./10-ci-cd-quality-gates/README.md) | `thresholds.yaml`, pytest wiring, GitHub Actions pipeline, the exit-code gate. | CI for both trunk projects |
-| 11 | [`11-observability-and-telemetry`](./11-observability-and-telemetry/README.md) | The four-layer stack (logging → tracing → metrics → dashboard/alerting), golden signals, incident response, drift. | Production readiness for both |
-
-Status: all 11 chapters complete. Chapter 6's code is written and unit-tested (8/8 passing) but not yet wired into `portfolio-risk-evaluator`'s real endpoint — see that chapter's "What's still open" section.
+Rework in a trunk project is expensive on purpose — each is meant to grow as a coherent, interview-defensible codebase, not get rewritten every time understanding improves. This repo absorbs that churn: a topic is learned here with working, tested code, and only *then* does the corresponding piece land in a trunk project, usually as a small drop-in package plus a wiring note. See [Chapter 6's `WIRING.md`](./06-implementing-and-testing-the-harness/WIRING.md) for what that handoff looks like in practice.
 
 ## Reading paths
 
-Chapters 1–11 read straight through as one coherent story (see each chapter's Previous/Next links). Two shorter paths, if only one trunk project is active right now:
+Chapters 1–12 read straight through as one story. Shorter routes:
 
-- **Building/extending the harness** (`portfolio-risk-evaluator`): 1 → 3 → 4 → 5 → 6, then 7–10 for evaluation/compliance/CI.
-- **Building/extending the RAG agent** (`fintech-support-ai-evaluator`, `clinic-ai-testing`): 1 → 2 → 3 → 4, then 7–11 for evaluation/compliance/CI/observability.
+- **Building an agent backend** → 5 → 6 → 7, then 8–11 for evaluation, compliance, and CI.
+- **Building/extending a RAG agent** → 1 → 2 → 3 → 4, then 8–12.
+- **Interview in two weeks** → see [STUDY-GUIDE.md's Path B](./STUDY-GUIDE.md#path-b--interview-in-two-weeks).
 
-Chapters 7–10 (evaluation, golden datasets, compliance, CI/CD) and Chapter 11 (observability) apply identically to both trunk projects regardless of which path got there first.
+## Status
+
+- **All 12 chapters written**, cross-linked, with exercises and interview sections throughout.
+- **Chapter 6's service**: 112 tests passing, verified running under `uvicorn` — endpoints exercised with real requests, structured log output captured from a real run. **Not yet wired into `portfolio-risk-evaluator`'s real `/review`**: that repo's `main.py`/`schemas.py` were not available to read, so Chapter 6's schemas are explicitly this notebook's own rather than a guess at production field names. [`WIRING.md`](./06-implementing-and-testing-the-harness/WIRING.md) has the adapter pattern.
+- **Chapter 7's toolkit**: 27 tests passing.
+- Chapters 2 and 8–11 originated from pre-existing guides (`llm-agentic-eval-guide.html`, `deepeval-ragas-guide.html`, `deepeval-metrics-guide.html`, `clinic-ai-testing/TESTING_AI_SYSTEMS.md`) — ported and reorganised, then extended with worked examples and exercises.
 
 ## Roadmap — not yet written
 
-New chapters get added as new topics come up, same pattern every time: theory here first, trunk project second.
-
-- **LLM-as-judge selection in depth** — when a local judge (`deepseek-r1:7b`) is defensible vs. when it isn't; self-serving bias mitigation beyond the one-paragraph version in Chapter 7.
-- **Drift detection tooling** — Arize/Fiddler in more depth than Chapter 11's one-paragraph mention.
-- **Agent frameworks compared** — LangGraph vs. legacy `AgentExecutor` vs. CrewAI/AutoGen, and why LangGraph is the market-relevant default going forward.
-- **Tool-calling mechanics in depth** — function-calling schemas, MCP, parallel vs. sequential tool calls. (The source roadmap image has a "Tools / Actions" section past where its screenshot was cut off — this notebook currently covers tools only through Chapter 3's definition and Chapters 5–6's execution layer, not the calling-convention mechanics themselves.)
-
-## How to read a chapter
-
-Every chapter folder stands on its own — open its `README.md` and it's self-contained enough to understand and apply what it covers without another chapter open at the same time. That said, chapters build on each other in reading-path order: Chapter 6 assumes Chapter 5's architecture, Chapter 10 assumes Chapter 7's thresholds exist. Reading in path order is the intended experience even though nothing forces it.
-
-Where a chapter ships code, the code lives in that chapter's own folder and is runnable on its own:
-
-```bash
-cd 06-implementing-and-testing-the-harness
-python3 -m pytest tests/ -v
-```
+- **LLM-as-judge selection in depth** — when a local judge (`deepseek-r1:7b`) is defensible; self-serving bias mitigation beyond Chapter 8's summary.
+- **Drift detection tooling** — Arize/Fiddler, past Chapter 12's overview.
+- **Agent frameworks compared** — LangGraph vs. legacy `AgentExecutor` vs. CrewAI/AutoGen.
+- **Persistence and the outbox pattern** — Chapter 6 *observes* the "rail confirmed, our state didn't persist" failure but cannot yet prevent it.
 
 ## Source material
 
-`images/` holds the two diagrams this notebook is built around: a public AI Agents roadmap (chapter ordering) and a harness/feedback-loop diagram (Chapters 5–6). Not original artwork — shared by another AI practitioner as a conceptual reference, credited inline where used, never reproduced as if original.
-
-## Related
-
-- [`llm-agentic-eval-guide`](https://github.com/fgmartinez) — the original single-document version of most of Chapters 2 and 7–10's material, plus interview Q&A depth this notebook doesn't try to duplicate. This repo is that material restructured into a navigable, chaptered, GitHub-native notebook, tied explicitly to the two trunk projects and reordered to follow a proper learning sequence — not a replacement for it, a reorganization of it.
+`images/` holds the two diagrams this notebook is built around: a public AI Agents roadmap (chapter ordering) and a harness/feedback-loop diagram (Chapters 5–6). Not original artwork — shared by another AI practitioner as a conceptual reference, credited inline where used, never reproduced as if original. Chapter 7 exists because that roadmap's "Tools / Actions" section was cut off in the screenshot; rather than invent what it said, that chapter covers the mechanism directly.
 
 ## For future sessions
 
-See [`CLAUDE.md`](./CLAUDE.md) for full project context — read that first, not this README, when picking this repo back up in a new conversation.
+See [`CLAUDE.md`](./CLAUDE.md) for working context — read that first, not this README, when picking the repo back up in a new conversation.
