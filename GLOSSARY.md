@@ -17,6 +17,7 @@ These cause more real bugs than everything else in this glossary combined. Learn
 | **RETRY** vs. **CORRECT** | Ch. 6 | RETRY: outcome unknown (timeout) → **same** idempotency key. CORRECT: it happened but not as asked → **new** key, shortfall only. Getting them backwards double-refunds or never pays the remainder. |
 | **Tool call** vs. **Action** | Ch. 5 | A tool call is a **proposal**. Nothing has happened. The gap between them is the entire subject of the harness. |
 | **Query drift** vs. **Score drift** | Ch. 12 | Query drift: users ask about things the corpus never covered. Score drift: the same questions score worse. Distinguished by the question *distribution*, not the score. |
+| **DTO** (API schema) vs. **Domain model** | *practice note — not yet chaptered; from Payment Support repo, Section 8* | The DTO (e.g. `AskRequest`/`AskResponse`, Pydantic) is the HTTP contract — what an external caller sees. The domain model (e.g. `PolicyAnswer`, a plain dataclass) is what the internal logic actually works with. They change for different reasons, so they're never the same class — something at the boundary (a route handler) translates one into the other on purpose. Conflating them means an internal refactor leaks into the public contract, or a public API concern (versioning, field renames) leaks into business logic. |
 
 ## A–Z
 
@@ -43,6 +44,8 @@ These cause more real bugs than everything else in this glossary combined. Learn
 **Confused deputy** *(Ch. 7)* — The agent has permissions the user doesn't, and a request exploits the gap. Fixed by putting authorisation *in the tool*, scoped by caller identity — never in the prompt.
 
 **Context window** *(Ch. 1)* — Maximum tokens (input + output) a model can attend to. Exceed it and content isn't seen at all — no error, just a confident answer with a hole in it.
+
+**Composition root** *(practice note — not yet chaptered; from Payment Support repo, Section 8)* — The one place in the system allowed to know both an interface (e.g. `PolicyRepository`) and its concrete implementation (e.g. `ChromaPolicyRepository`), and to wire them together. Everywhere else depends on the interface only. In FastAPI this is the module of `Depends()` provider functions (`app/api/dependencies.py`) — swapping a fake in for tests means overriding one provider function, never touching the class that uses it. The interview-answer version: "the only place allowed to couple interfaces to concrete implementations."
 
 **Corrector** *(Ch. 6)* — Turns a `CORRECT` verdict into a concrete next command. Kept separate from the resolver: the resolver classifies, the corrector does arithmetic. Refuses (escalates) when there's no evidence to compute from.
 
